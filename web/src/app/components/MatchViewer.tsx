@@ -4,6 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useGame, FightEvent } from '../context/GameContext';
 import { useAuth } from '../context/AuthContext';
 import { formatSOL } from '@/lib/api';
+import {
+  playCountdownBeep,
+  playSwordHit,
+  playHurtSound,
+  playVictorySound,
+  playDefeatSound,
+  playBlockSound,
+  playDodgeSound,
+} from '@/lib/sounds';
 
 export function MatchViewer() {
   const { gameState, currentMatch, resetGame } = useGame();
@@ -32,9 +41,17 @@ export function MatchViewer() {
   const processEvent = useCallback((event: FightEvent) => {
     setCurrentAnimation(`${event.actor}-${event.type}`);
 
+    // Play sounds based on event type
+    if (event.type.includes('attack')) {
+      playSwordHit();
+    }
+
     // Apply damage
     if (event.hit && event.damage) {
       const target = event.actor === 'playerA' ? 'playerB' : 'playerA';
+
+      // Play hurt sound
+      setTimeout(() => playHurtSound(), 100);
 
       // Show damage popup
       setDamagePopup({ player: target, damage: event.damage, key: Date.now() });
@@ -53,6 +70,10 @@ export function MatchViewer() {
           return newHealth;
         });
       }
+    } else if (event.type === 'react_dodge') {
+      playDodgeSound();
+    } else if (event.type === 'react_block') {
+      playBlockSound();
     }
 
     // Check for KO event
@@ -90,10 +111,22 @@ export function MatchViewer() {
 
     const timeouts: NodeJS.Timeout[] = [];
 
+    // Play countdown beep for 3
+    playCountdownBeep(3);
+
     // Countdown: 3 -> 2 -> 1 -> FIGHT!
-    timeouts.push(setTimeout(() => setCountdown(2), 1000));
-    timeouts.push(setTimeout(() => setCountdown(1), 2000));
-    timeouts.push(setTimeout(() => setCountdown(0), 3000)); // 0 = "FIGHT!"
+    timeouts.push(setTimeout(() => {
+      setCountdown(2);
+      playCountdownBeep(2);
+    }, 1000));
+    timeouts.push(setTimeout(() => {
+      setCountdown(1);
+      playCountdownBeep(1);
+    }, 2000));
+    timeouts.push(setTimeout(() => {
+      setCountdown(0);
+      playCountdownBeep(0); // "FIGHT!" sound
+    }, 3000));
     timeouts.push(setTimeout(() => setCountdown(null), 3500)); // Clear countdown
 
     const countdownDelay = 3500; // Start events after countdown
@@ -127,10 +160,16 @@ export function MatchViewer() {
     if (fightEnded && !showResult) {
       setTimeout(() => {
         setShowResult(true);
+        // Play victory or defeat sound
+        if (isWinner) {
+          playVictorySound();
+        } else {
+          playDefeatSound();
+        }
         refreshBalances();
       }, 500);
     }
-  }, [fightEnded, showResult, refreshBalances]);
+  }, [fightEnded, showResult, refreshBalances, isWinner]);
 
   // Waiting for match
   if (gameState === 'matched') {
@@ -216,19 +255,19 @@ export function MatchViewer() {
           </div>
         </div>
 
-        {/* Fighters */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-between px-8">
+        {/* Fighters - positioned closer together in the center */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex justify-center gap-16">
           {/* Player A - Pixel Character */}
           <div
-            className={`relative transition-all duration-150 ${
+            className={`relative transition-all duration-200 ${
               currentAnimation?.startsWith('playerA-attack')
-                ? 'translate-x-16'
+                ? 'translate-x-12 scale-110'
                 : currentAnimation?.startsWith('playerA-react_hit')
-                ? '-translate-x-4 brightness-150'
+                ? '-translate-x-3 brightness-200 scale-95'
                 : currentAnimation === 'playerA-ko'
-                ? 'rotate-90 translate-y-8 opacity-50'
+                ? 'rotate-90 translate-y-12 opacity-30'
                 : currentAnimation === 'playerA-victory'
-                ? 'scale-110 -translate-y-2'
+                ? 'scale-125 -translate-y-4 animate-bounce'
                 : ''
             }`}
           >
@@ -271,15 +310,15 @@ export function MatchViewer() {
 
           {/* Player B - Pixel Character (Red) */}
           <div
-            className={`relative transition-all duration-150 ${
+            className={`relative transition-all duration-200 ${
               currentAnimation?.startsWith('playerB-attack')
-                ? '-translate-x-16'
+                ? '-translate-x-12 scale-110'
                 : currentAnimation?.startsWith('playerB-react_hit')
-                ? 'translate-x-4 brightness-150'
+                ? 'translate-x-3 brightness-200 scale-95'
                 : currentAnimation === 'playerB-ko'
-                ? '-rotate-90 translate-y-8 opacity-50'
+                ? '-rotate-90 translate-y-12 opacity-30'
                 : currentAnimation === 'playerB-victory'
-                ? 'scale-110 -translate-y-2'
+                ? 'scale-125 -translate-y-4 animate-bounce'
                 : ''
             }`}
           >
