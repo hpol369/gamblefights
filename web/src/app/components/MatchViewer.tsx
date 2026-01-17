@@ -15,6 +15,7 @@ export function MatchViewer() {
   const [showResult, setShowResult] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [waitingToStart, setWaitingToStart] = useState(true);
+  const [damagePopup, setDamagePopup] = useState<{ player: string; damage: number; key: number } | null>(null);
 
   const fightScript = currentMatch?.fightScript;
 
@@ -33,6 +34,12 @@ export function MatchViewer() {
 
     // Apply damage
     if (event.hit && event.damage) {
+      const target = event.actor === 'playerA' ? 'playerB' : 'playerA';
+
+      // Show damage popup
+      setDamagePopup({ player: target, damage: event.damage, key: Date.now() });
+      setTimeout(() => setDamagePopup(null), 800);
+
       if (event.actor === 'playerA') {
         setPlayerBHealth((h) => {
           const newHealth = Math.max(0, h - event.damage!);
@@ -180,7 +187,7 @@ export function MatchViewer() {
       </div>
 
       {/* Fight Arena */}
-      <div className="relative h-64 bg-gradient-to-b from-gray-900 to-gray-800 overflow-hidden">
+      <div className="relative h-80 bg-gradient-to-b from-gray-900 via-gray-800 to-green-900/30 overflow-hidden">
         {/* Health Bars */}
         <div className="absolute top-4 left-4 right-4 flex gap-4">
           <div className="flex-1">
@@ -204,53 +211,135 @@ export function MatchViewer() {
         </div>
 
         {/* Fighters */}
-        <div className="absolute bottom-8 left-0 right-0 flex justify-between px-12">
-          {/* Player A */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-between px-8">
+          {/* Player A - Pixel Character */}
           <div
-            className={`w-20 h-28 bg-gradient-to-b from-blue-500 to-blue-700 rounded-lg flex items-center justify-center transition-all duration-150 ${
+            className={`relative transition-all duration-150 ${
               currentAnimation?.startsWith('playerA-attack')
-                ? 'translate-x-8 scale-110'
-                : currentAnimation?.startsWith('playerA-react')
-                ? '-translate-x-2 rotate-3'
+                ? 'translate-x-16'
+                : currentAnimation?.startsWith('playerA-react_hit')
+                ? '-translate-x-4 brightness-150'
                 : currentAnimation === 'playerA-ko'
                 ? 'rotate-90 translate-y-8 opacity-50'
                 : currentAnimation === 'playerA-victory'
-                ? 'scale-125 -translate-y-4'
+                ? 'scale-110 -translate-y-2'
                 : ''
             }`}
           >
-            <span className="text-3xl">
-              {currentAnimation === 'playerA-victory' ? '🏆' : '⚔️'}
-            </span>
+            {/* Character Body */}
+            <div className="relative w-16 h-24">
+              {/* Head */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-amber-200 rounded-sm border-2 border-amber-300">
+                {/* Eyes */}
+                <div className="absolute top-2 left-1 w-1.5 h-1.5 bg-black rounded-full"></div>
+                <div className="absolute top-2 right-1 w-1.5 h-1.5 bg-black rounded-full"></div>
+                {/* Helmet */}
+                <div className="absolute -top-1 left-0 right-0 h-3 bg-gray-400 rounded-t-sm border border-gray-500"></div>
+              </div>
+              {/* Body/Armor */}
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 w-10 h-10 bg-blue-600 border-2 border-blue-800 rounded-sm">
+                {/* Chest detail */}
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-6 bg-blue-500 rounded-sm"></div>
+              </div>
+              {/* Legs */}
+              <div className="absolute top-[72px] left-1/2 -translate-x-1/2 flex gap-1">
+                <div className={`w-3 h-6 bg-blue-800 rounded-b-sm ${!waitingToStart && !showResult ? 'animate-pulse' : ''}`}></div>
+                <div className={`w-3 h-6 bg-blue-800 rounded-b-sm ${!waitingToStart && !showResult ? 'animate-pulse' : ''}`} style={{animationDelay: '0.15s'}}></div>
+              </div>
+              {/* Sword Arm */}
+              <div className={`absolute top-10 -right-4 transition-transform duration-100 ${
+                currentAnimation?.startsWith('playerA-attack') ? 'rotate-[-60deg] translate-x-2' : 'rotate-12'
+              }`}>
+                <div className="w-2 h-6 bg-amber-200 rounded-sm"></div>
+                <div className="w-1.5 h-10 bg-gray-300 border border-gray-400 -mt-1 ml-0.5">
+                  <div className="w-3 h-2 bg-yellow-600 -mt-1 -ml-0.5"></div>
+                </div>
+              </div>
+              {/* Shield Arm */}
+              <div className="absolute top-9 -left-3 w-6 h-8 bg-blue-800 rounded-sm border-2 border-blue-900 flex items-center justify-center">
+                <div className="w-3 h-4 bg-yellow-500 rounded-sm"></div>
+              </div>
+            </div>
+            {currentAnimation === 'playerA-victory' && <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-2xl">🏆</span>}
           </div>
 
-          {/* Player B */}
+          {/* Player B - Pixel Character (Red) */}
           <div
-            className={`w-20 h-28 bg-gradient-to-b from-red-500 to-red-700 rounded-lg flex items-center justify-center transition-all duration-150 ${
+            className={`relative transition-all duration-150 ${
               currentAnimation?.startsWith('playerB-attack')
-                ? '-translate-x-8 scale-110'
-                : currentAnimation?.startsWith('playerB-react')
-                ? 'translate-x-2 -rotate-3'
+                ? '-translate-x-16'
+                : currentAnimation?.startsWith('playerB-react_hit')
+                ? 'translate-x-4 brightness-150'
                 : currentAnimation === 'playerB-ko'
                 ? '-rotate-90 translate-y-8 opacity-50'
                 : currentAnimation === 'playerB-victory'
-                ? 'scale-125 -translate-y-4'
+                ? 'scale-110 -translate-y-2'
                 : ''
             }`}
           >
-            <span className="text-3xl">
-              {currentAnimation === 'playerB-victory' ? '🏆' : '🗡️'}
-            </span>
+            {/* Character Body */}
+            <div className="relative w-16 h-24 scale-x-[-1]">
+              {/* Head */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-amber-200 rounded-sm border-2 border-amber-300">
+                {/* Eyes */}
+                <div className="absolute top-2 left-1 w-1.5 h-1.5 bg-black rounded-full"></div>
+                <div className="absolute top-2 right-1 w-1.5 h-1.5 bg-black rounded-full"></div>
+                {/* Helmet */}
+                <div className="absolute -top-1 left-0 right-0 h-3 bg-gray-500 rounded-t-sm border border-gray-600"></div>
+              </div>
+              {/* Body/Armor */}
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 w-10 h-10 bg-red-600 border-2 border-red-800 rounded-sm">
+                {/* Chest detail */}
+                <div className="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-6 bg-red-500 rounded-sm"></div>
+              </div>
+              {/* Legs */}
+              <div className="absolute top-[72px] left-1/2 -translate-x-1/2 flex gap-1">
+                <div className={`w-3 h-6 bg-red-800 rounded-b-sm ${!waitingToStart && !showResult ? 'animate-pulse' : ''}`}></div>
+                <div className={`w-3 h-6 bg-red-800 rounded-b-sm ${!waitingToStart && !showResult ? 'animate-pulse' : ''}`} style={{animationDelay: '0.15s'}}></div>
+              </div>
+              {/* Sword Arm */}
+              <div className={`absolute top-10 -right-4 transition-transform duration-100 ${
+                currentAnimation?.startsWith('playerB-attack') ? 'rotate-[-60deg] translate-x-2' : 'rotate-12'
+              }`}>
+                <div className="w-2 h-6 bg-amber-200 rounded-sm"></div>
+                <div className="w-1.5 h-10 bg-gray-300 border border-gray-400 -mt-1 ml-0.5">
+                  <div className="w-3 h-2 bg-yellow-600 -mt-1 -ml-0.5"></div>
+                </div>
+              </div>
+              {/* Shield Arm */}
+              <div className="absolute top-9 -left-3 w-6 h-8 bg-red-800 rounded-sm border-2 border-red-900 flex items-center justify-center">
+                <div className="w-3 h-4 bg-yellow-500 rounded-sm"></div>
+              </div>
+            </div>
+            {currentAnimation === 'playerB-victory' && <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-2xl scale-x-[-1]">🏆</span>}
           </div>
         </div>
 
+        {/* Damage Hitsplats - OSRS Style */}
+        {damagePopup && (
+          <div
+            key={damagePopup.key}
+            className={`absolute top-1/3 ${damagePopup.player === 'playerA' ? 'left-16' : 'right-16'} pointer-events-none animate-bounce`}
+          >
+            <div className="relative">
+              {/* Red hitsplat background */}
+              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center border-2 border-red-800 shadow-lg"
+                   style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}>
+              </div>
+              {/* Damage number */}
+              <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg drop-shadow-lg">
+                {damagePopup.damage}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Action Text */}
-        {currentAnimation && !countdown && (
+        {currentAnimation && !countdown && !damagePopup && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
             <span className="text-2xl font-bold text-yellow-400 animate-pulse">
-              {currentAnimation.includes('attack') && '💥'}
-              {currentAnimation.includes('crit') && '⚡ CRIT!'}
               {currentAnimation.includes('dodge') && '💨 DODGE!'}
+              {currentAnimation.includes('block') && '🛡️ BLOCK!'}
               {currentAnimation.includes('ko') && '☠️ K.O.!'}
             </span>
           </div>
