@@ -14,6 +14,7 @@ export function MatchViewer() {
   const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [waitingToStart, setWaitingToStart] = useState(true);
 
   const fightScript = currentMatch?.fightScript;
 
@@ -56,17 +57,29 @@ export function MatchViewer() {
     setTimeout(() => setCurrentAnimation(null), 300);
   }, []);
 
-  // Run fight animation with countdown
+  // Reset waiting state when new match arrives
   useEffect(() => {
-    if (gameState !== 'result' || !fightScript) return;
+    if (gameState === 'result' && fightScript) {
+      setWaitingToStart(true);
+      setPlayerAHealth(100);
+      setPlayerBHealth(100);
+      setCurrentEventIndex(0);
+      setShowResult(false);
+      setFightEnded(false);
+      setCountdown(null);
+    }
+  }, [gameState, fightScript]);
 
-    // Reset state
-    setPlayerAHealth(100);
-    setPlayerBHealth(100);
-    setCurrentEventIndex(0);
-    setShowResult(false);
-    setFightEnded(false);
+  // Start fight function - called when user clicks Start
+  const startFight = () => {
+    if (!fightScript) return;
+    setWaitingToStart(false);
     setCountdown(3);
+  };
+
+  // Run fight animation with countdown (only after user clicks Start)
+  useEffect(() => {
+    if (gameState !== 'result' || !fightScript || waitingToStart) return;
 
     const timeouts: NodeJS.Timeout[] = [];
 
@@ -100,7 +113,7 @@ export function MatchViewer() {
     return () => {
       timeouts.forEach(clearTimeout);
     };
-  }, [gameState, fightScript, processEvent, refreshBalances]);
+  }, [gameState, fightScript, waitingToStart, processEvent, refreshBalances]);
 
   // Show result immediately when fight ends (KO or health reaches 0)
   useEffect(() => {
@@ -240,6 +253,18 @@ export function MatchViewer() {
               {currentAnimation.includes('dodge') && '💨 DODGE!'}
               {currentAnimation.includes('ko') && '☠️ K.O.!'}
             </span>
+          </div>
+        )}
+
+        {/* Start Button Overlay */}
+        {waitingToStart && !countdown && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+            <button
+              onClick={startFight}
+              className="px-12 py-6 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 rounded-xl text-3xl font-bold transition-all transform hover:scale-105 active:scale-95 shadow-2xl"
+            >
+              START FIGHT
+            </button>
           </div>
         )}
 
