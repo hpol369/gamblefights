@@ -9,8 +9,8 @@ export function MatchViewer() {
   const { gameState, currentMatch, resetGame } = useGame();
   const { user, refreshBalances } = useAuth();
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
-  const [playerAHealth, setPlayerAHealth] = useState(100);
-  const [playerBHealth, setPlayerBHealth] = useState(100);
+  const [playerAHealth, setPlayerAHealth] = useState(99);
+  const [playerBHealth, setPlayerBHealth] = useState(99);
   const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -68,8 +68,8 @@ export function MatchViewer() {
   useEffect(() => {
     if (gameState === 'result' && fightScript) {
       setWaitingToStart(true);
-      setPlayerAHealth(100);
-      setPlayerBHealth(100);
+      setPlayerAHealth(99);
+      setPlayerBHealth(99);
       setCurrentEventIndex(0);
       setShowResult(false);
       setFightEnded(false);
@@ -187,26 +187,32 @@ export function MatchViewer() {
       </div>
 
       {/* Fight Arena */}
-      <div className="relative h-80 bg-gradient-to-b from-gray-900 via-gray-800 to-green-900/30 overflow-hidden">
-        {/* Health Bars */}
-        <div className="absolute top-4 left-4 right-4 flex gap-4">
+      <div className="relative h-[400px] bg-gradient-to-b from-gray-900 via-gray-800 to-green-900/30 overflow-hidden">
+        {/* Health Bars - OSRS Style */}
+        <div className="absolute top-4 left-4 right-4 flex gap-8">
           <div className="flex-1">
-            <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-green-400 font-bold">HP</span>
+              <span className="text-sm font-mono text-white">{playerAHealth}/99</span>
+            </div>
+            <div className="h-5 bg-red-900 rounded border border-gray-600 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-300"
-                style={{ width: `${playerAHealth}%` }}
+                className="h-full bg-gradient-to-r from-green-600 to-green-500 transition-all duration-300"
+                style={{ width: `${(playerAHealth / 99) * 100}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400 mt-1">{playerAHealth}%</p>
           </div>
           <div className="flex-1">
-            <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+            <div className="flex items-center justify-end gap-2 mb-1">
+              <span className="text-sm font-mono text-white">{playerBHealth}/99</span>
+              <span className="text-xs text-green-400 font-bold">HP</span>
+            </div>
+            <div className="h-5 bg-red-900 rounded border border-gray-600 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-red-400 to-red-500 transition-all duration-300 ml-auto"
-                style={{ width: `${playerBHealth}%` }}
+                className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-300 ml-auto"
+                style={{ width: `${(playerBHealth / 99) * 100}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400 mt-1 text-right">{playerBHealth}%</p>
           </div>
         </div>
 

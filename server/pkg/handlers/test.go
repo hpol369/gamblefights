@@ -141,9 +141,9 @@ func TestFight(c echo.Context) error {
 func generateTestFightScript(playerAName, playerBName, predeterminedWinner string) FightScript {
 	events := []FightEvent{}
 
-	// Track health for both players
-	playerAHealth := 100
-	playerBHealth := 100
+	// Track health for both players (99 HP like OSRS)
+	playerAHealth := 99
+	playerBHealth := 99
 
 	// Initial approach
 	events = append(events, FightEvent{Time: 0.2, Type: "move_fwd", Actor: "playerA"})
@@ -227,7 +227,7 @@ func generateTestFightScript(playerAName, playerBName, predeterminedWinner strin
 
 		// Alternate turns
 		isPlayerATurn = !isPlayerATurn
-		currentTime += 0.6 + rand.Float64()*0.4 // Faster pace
+		currentTime += 1.8 + rand.Float64()*0.6 // Slower pace like OSRS (about 2 seconds per attack)
 	}
 
 	// Determine actual winner based on health (should match predetermined due to bias)

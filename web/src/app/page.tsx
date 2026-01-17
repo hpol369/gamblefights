@@ -145,14 +145,14 @@ export default function Home() {
           </div>
         ) : (
           // Game view for authenticated users
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Left Column - User Stats */}
             <div className="space-y-6">
               <UserStats />
             </div>
 
-            {/* Center Column - Game Arena */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* Center Column - Game Arena (wider) */}
+            <div className="lg:col-span-2 space-y-6">
               {gameState === 'idle' || gameState === 'queuing' ? (
                 <BettingPanel />
               ) : (
