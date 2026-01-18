@@ -42,10 +42,24 @@ export function LobbyCanvas() {
     const [players, setPlayers] = useState<Map<string, PlayerState>>(new Map());
     const [myPos, setMyPos] = useState({ x: 400, y: 350 });
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+    const [chatInput, setChatInput] = useState('');
+    const [myChatMessage, setMyChatMessage] = useState<string | null>(null);
     const keysRef = useRef(new Set<string>());
+    const chatInputRef = useRef<HTMLInputElement>(null);
 
     const myCharacter = 'trump';
     const myName = user?.username || 'You';
+
+    // Handle chat submission
+    const handleChatSubmit = useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        if (chatInput.trim()) {
+            setMyChatMessage(chatInput.trim());
+            setChatInput('');
+            // Auto-hide after 4 seconds
+            setTimeout(() => setMyChatMessage(null), 4000);
+        }
+    }, [chatInput]);
 
     // Assets
     const assetsRef = useRef<{ [key: string]: HTMLImageElement }>({});
@@ -143,7 +157,11 @@ export function LobbyCanvas() {
 
     // Input Handling
     useEffect(() => {
-        const handleDown = (e: KeyboardEvent) => keysRef.current.add(e.key.toLowerCase());
+        const handleDown = (e: KeyboardEvent) => {
+            // Don't move if typing in chat
+            if (document.activeElement === chatInputRef.current) return;
+            keysRef.current.add(e.key.toLowerCase());
+        };
         const handleUp = (e: KeyboardEvent) => keysRef.current.delete(e.key.toLowerCase());
 
         window.addEventListener('keydown', handleDown);
@@ -239,9 +257,10 @@ export function LobbyCanvas() {
             // Prepare Render List (Z-Sort)
             const renderList: PlayerState[] = [];
             players.forEach(p => { if (p.isBot) renderList.push(p); });
-            // Add self
+            // Add self with chat message
             renderList.push({
-                id: 'me', name: myName, x: myPos.x, y: myPos.y, character: myCharacter, isBot: false
+                id: 'me', name: myName, x: myPos.x, y: myPos.y, character: myCharacter, isBot: false,
+                chatMessage: myChatMessage || undefined
             });
 
             // Sort by Y (higher Y = closer to camera = draw last)
@@ -337,7 +356,7 @@ export function LobbyCanvas() {
 
         render();
         return () => cancelAnimationFrame(animationFrameId);
-    }, [players, myPos, selectedPlayer, myName, myCharacter]);
+    }, [players, myPos, selectedPlayer, myName, myCharacter, myChatMessage]);
 
     return (
         <div className="relative">
@@ -355,6 +374,25 @@ export function LobbyCanvas() {
                     <div className="opacity-80">Click players to duel</div>
                 </div>
             </div>
+
+            {/* Chat Input */}
+            <form onSubmit={handleChatSubmit} className="mt-4 flex gap-2">
+                <input
+                    ref={chatInputRef}
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Press Enter to chat..."
+                    maxLength={50}
+                    className="flex-1 px-4 py-2 bg-[#1a0f0a] border-2 border-[#5a3a22] rounded text-[#eecfa1] placeholder-[#5a3a22] focus:border-[#ffd700] focus:outline-none font-mono"
+                />
+                <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#5a3a22] hover:bg-[#7a5a32] text-[#ffd700] font-bold rounded border-2 border-[#ffd700] transition-colors"
+                >
+                    Send
+                </button>
+            </form>
 
             {/* Challenge Modal */}
             {selectedPlayer && (
