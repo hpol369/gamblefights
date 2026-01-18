@@ -315,23 +315,25 @@ export function LobbyCanvas() {
 
             {/* Challenge Modal */}
             {selectedPlayer && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#2a1a10] border-2 border-[#ffd700] rounded-lg p-4 shadow-xl">
-                    <p className="text-[#eecfa1] text-center mb-3 font-[Cinzel]">
-                        Challenge <span className="text-[#ffd700] font-bold">{players.get(selectedPlayer)?.name}</span> to a duel?
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={challengeBot}
-                            className="flex-1 px-4 py-2 bg-[#8b0000] text-[#ffd700] font-bold rounded hover:bg-[#a60000] border-2 border-[#ffd700] font-[Cinzel]"
-                        >
-                            ⚔️ FIGHT!
-                        </button>
-                        <button
-                            onClick={() => setSelectedPlayer(null)}
-                            className="flex-1 px-4 py-2 bg-[#3b3b3b] text-[#eecfa1] font-bold rounded hover:bg-[#4b4b4b] border-2 border-[#5a5a5a] font-[Cinzel]"
-                        >
-                            Cancel
-                        </button>
+                <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+                    <div className="bg-[#2a1a10] border-4 border-[#ffd700] rounded-lg p-6 shadow-2xl pointer-events-auto">
+                        <p className="text-[#eecfa1] text-center mb-4 font-[Cinzel] text-xl">
+                            Challenge <span className="text-[#ffd700] font-bold">{players.get(selectedPlayer)?.name}</span> to a duel?
+                        </p>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={challengeBot}
+                                className="flex-1 px-6 py-3 bg-[#8b0000] text-[#ffd700] font-bold rounded hover:bg-[#a60000] border-2 border-[#ffd700] font-[Cinzel] text-lg cursor-pointer active:scale-95 transition-transform"
+                            >
+                                ⚔️ FIGHT!
+                            </button>
+                            <button
+                                onClick={() => setSelectedPlayer(null)}
+                                className="flex-1 px-6 py-3 bg-[#3b3b3b] text-[#eecfa1] font-bold rounded hover:bg-[#4b4b4b] border-2 border-[#5a5a5a] font-[Cinzel] text-lg cursor-pointer active:scale-95 transition-transform"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
