@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useGame } from '../context/GameContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,6 +20,7 @@ const BOT_NAMES = ['Maximus', 'Spartacus', 'Crixus', 'Commodus', 'Tigris'];
 
 export function LobbyCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const router = useRouter();
     const { startDemoFight } = useGame();
     const { user } = useAuth();
     const [players, setPlayers] = useState<Map<string, PlayerState>>(new Map());
@@ -179,9 +181,11 @@ export function LobbyCanvas() {
             if (bot) {
                 // Start a demo fight against this bot
                 startDemoFight(myName, 100000000); // 0.1 SOL
+                // Navigate to home page where MatchViewer is
+                router.push('/');
             }
         }
-    }, [selectedPlayer, players, startDemoFight, myName]);
+    }, [selectedPlayer, players, startDemoFight, myName, router]);
 
     // Render Loop
     useEffect(() => {
