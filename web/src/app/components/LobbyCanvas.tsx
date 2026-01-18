@@ -14,7 +14,23 @@ interface PlayerState {
     isBot?: boolean;
     targetX?: number;
     targetY?: number;
+    chatMessage?: string;
+    chatTimer?: number;
 }
+
+// Coordinate constants for "Pseudo-Isometric" mapping
+// The map is a static image, so we map the "Sand" area to a logical rectangle
+// and just render players sorted by Y to create depth.
+const MAP_WIDTH = 800; // Canvas width
+const MAP_HEIGHT = 600;
+
+// Defines the "Walkable" bounds (approximate diamond/square in screen space)
+// We'll keep it simple: Just a rectangular walkable area that fits "inside" the walls of the image
+// Adjust these based on the generated image visual
+const MIN_X = 150;
+const MAX_X = 650;
+const MIN_Y = 150;
+const MAX_Y = 500;
 
 const BOT_NAMES = ['Maximus', 'Spartacus', 'Crixus', 'Commodus', 'Tigris'];
 
@@ -24,7 +40,7 @@ export function LobbyCanvas() {
     const { startDemoFight } = useGame();
     const { user } = useAuth();
     const [players, setPlayers] = useState<Map<string, PlayerState>>(new Map());
-    const [myPos, setMyPos] = useState({ x: 400, y: 300 });
+    const [myPos, setMyPos] = useState({ x: 400, y: 350 });
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
     const keysRef = useRef(new Set<string>());
 
@@ -37,45 +53,51 @@ export function LobbyCanvas() {
 
     // Load Assets
     useEffect(() => {
-        const chars = ['trump', 'maduro'];
+        const assets = ['trump', 'maduro', 'isometric'];
         let loaded = 0;
-        chars.forEach(char => {
+        assets.forEach(name => {
             const img = new Image();
             img.onload = () => {
                 loaded++;
-                if (loaded === chars.length) {
+                if (loaded === assets.length) {
                     assetsLoaded.current = true;
                 }
             };
-            img.src = `/characters/${char}.png`;
-            assetsRef.current[char] = img;
+            img.src = name === 'isometric' ? '/isometric_arena.png' : `/characters/${name}.png`;
+            assetsRef.current[name] = img;
         });
     }, []);
 
     // Initialize bots
     useEffect(() => {
         const initialPlayers = new Map<string, PlayerState>();
-
-        // Add bots
         const botCharacters = ['maduro', 'trump', 'maduro'];
         for (let i = 0; i < 3; i++) {
             const botId = `bot-${i}`;
+            // Random start pos within bounds
+            const bx = MIN_X + Math.random() * (MAX_X - MIN_X);
+            const by = MIN_Y + Math.random() * (MAX_Y - MIN_Y);
+
             initialPlayers.set(botId, {
                 id: botId,
                 name: BOT_NAMES[i],
-                x: 150 + Math.random() * 500,
-                y: 150 + Math.random() * 300,
+                x: bx,
+                y: by,
                 character: botCharacters[i],
                 isBot: true,
-                targetX: 150 + Math.random() * 500,
-                targetY: 150 + Math.random() * 300,
+                targetX: bx,
+                targetY: by,
             });
         }
-
         setPlayers(initialPlayers);
     }, []);
 
-    // Bot AI - random movement
+    const STAKING_PHRASES = [
+        "Whip 10m", "DDS spec only", "No food", "Box me", "Staking 50m",
+        "100m risk", "No prayer", "Main staking", "Cleaned again...", "Spare 100k?"
+    ];
+
+    // Bot AI
     useEffect(() => {
         const botInterval = setInterval(() => {
             setPlayers(prev => {
@@ -88,32 +110,37 @@ export function LobbyCanvas() {
                         const dist = Math.sqrt(dx * dx + dy * dy);
 
                         if (dist < 5) {
-                            // Pick new random target
-                            player.targetX = 100 + Math.random() * 600;
-                            player.targetY = 100 + Math.random() * 400;
+                            // New target within bounds
+                            player.targetX = MIN_X + Math.random() * (MAX_X - MIN_X);
+                            player.targetY = MIN_Y + Math.random() * (MAX_Y - MIN_Y);
                         } else {
-                            // Move towards target
                             const speed = 1.5;
                             player.x += (dx / dist) * speed;
                             player.y += (dy / dist) * speed;
+                        }
+
+                        // Chat Logic
+                        if (!player.chatMessage && Math.random() < 0.02) {
+                            const phrase = STAKING_PHRASES[Math.floor(Math.random() * STAKING_PHRASES.length)];
+                            player.chatMessage = phrase;
+                            player.chatTimer = 150;
+                        }
+                        if (player.chatTimer && player.chatTimer > 0) {
+                            player.chatTimer--;
+                            if (player.chatTimer <= 0) player.chatMessage = undefined;
                         }
                     }
                 });
                 return newMap;
             });
         }, 50);
-
         return () => clearInterval(botInterval);
     }, []);
 
-    // Input Handling (WASD)
+    // Input Handling
     useEffect(() => {
-        const handleDown = (e: KeyboardEvent) => {
-            keysRef.current.add(e.key.toLowerCase());
-        };
-        const handleUp = (e: KeyboardEvent) => {
-            keysRef.current.delete(e.key.toLowerCase());
-        };
+        const handleDown = (e: KeyboardEvent) => keysRef.current.add(e.key.toLowerCase());
+        const handleUp = (e: KeyboardEvent) => keysRef.current.delete(e.key.toLowerCase());
 
         window.addEventListener('keydown', handleDown);
         window.addEventListener('keyup', handleUp);
@@ -130,9 +157,9 @@ export function LobbyCanvas() {
                 if (keys.has('a') || keys.has('arrowleft')) x -= speed;
                 if (keys.has('d') || keys.has('arrowright')) x += speed;
 
-                // Boundaries
-                x = Math.max(40, Math.min(760, x));
-                y = Math.max(40, Math.min(560, y));
+                // Clamp to Walkable Area
+                x = Math.max(MIN_X, Math.min(MAX_X, x));
+                y = Math.max(MIN_Y, Math.min(MAX_Y, y));
 
                 return { x, y };
             });
@@ -145,7 +172,7 @@ export function LobbyCanvas() {
         };
     }, []);
 
-    // Click handler for challenging
+    // Click handler
     const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -156,32 +183,31 @@ export function LobbyCanvas() {
         const clickX = (e.clientX - rect.left) * scaleX;
         const clickY = (e.clientY - rect.top) * scaleY;
 
-        // Check if clicked on a bot
         let clickedBotId: string | null = null;
+        // Check bots (simple AABB click check, accounts for sprite height)
         players.forEach(player => {
             if (player.isBot) {
-                const dist = Math.sqrt((clickX - player.x) ** 2 + (clickY - player.y) ** 2);
-                if (dist < 40) {
+                // Approximate sprite box centered at x, standing at y
+                const spriteTop = player.y - 70;
+                const spriteBottom = player.y;
+                const spriteLeft = player.x - 30;
+                const spriteRight = player.x + 30;
+
+                if (clickX >= spriteLeft && clickX <= spriteRight && clickY >= spriteTop && clickY <= spriteBottom) {
                     clickedBotId = player.id;
                 }
             }
         });
 
-        if (clickedBotId) {
-            setSelectedPlayer(clickedBotId);
-        } else {
-            setSelectedPlayer(null);
-        }
+        if (clickedBotId) setSelectedPlayer(clickedBotId);
+        else setSelectedPlayer(null);
     }, [players]);
 
-    // Challenge selected bot
     const challengeBot = useCallback(() => {
         if (selectedPlayer) {
             const bot = players.get(selectedPlayer);
             if (bot) {
-                // Start a demo fight against this bot
-                startDemoFight(myName, 100000000); // 0.1 SOL
-                // Navigate to home page where MatchViewer is
+                startDemoFight(myName, 100000000);
                 router.push('/');
             }
         }
@@ -197,112 +223,106 @@ export function LobbyCanvas() {
         let animationFrameId: number;
 
         const render = () => {
-            // Clear with sand color
-            ctx.fillStyle = '#eecfa1';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Draw subtle grid
-            ctx.globalAlpha = 0.15;
-            ctx.strokeStyle = '#8b6b45';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            for (let i = 0; i < canvas.width; i += 40) {
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i, canvas.height);
+            // Draw Isometric Background
+            if (assetsRef.current['isometric'] && assetsRef.current['isometric'].complete) {
+                // Draw background covering canvas. Assuming 800x600 image or similar aspect
+                ctx.drawImage(assetsRef.current['isometric'], 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#eecfa1';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
-            for (let i = 0; i < canvas.height; i += 40) {
-                ctx.moveTo(0, i);
-                ctx.lineTo(canvas.width, i);
-            }
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
 
-            // Draw arena border decorations
-            ctx.strokeStyle = '#5a3a22';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+            // Prepare Render List (Z-Sort)
+            const renderList: PlayerState[] = [];
+            players.forEach(p => { if (p.isBot) renderList.push(p); });
+            // Add self
+            renderList.push({
+                id: 'me', name: myName, x: myPos.x, y: myPos.y, character: myCharacter, isBot: false
+            });
 
-            // Function to draw a player
-            const drawPlayer = (p: PlayerState, isMe: boolean = false) => {
+            // Sort by Y (higher Y = closer to camera = draw last)
+            renderList.sort((a, b) => a.y - b.y);
+
+            // Draw Players
+            renderList.forEach(p => {
                 const img = assetsRef.current[p.character];
+                const isMe = p.id === 'me';
+                const isSelected = selectedPlayer === p.id;
 
                 ctx.save();
                 ctx.translate(p.x, p.y);
 
-                // Selection ring
-                if (selectedPlayer === p.id) {
+                // Selection Ring (Ground Level)
+                if (isSelected) {
+                    ctx.save();
+                    ctx.scale(1, 0.5); // Flatten ring for isometric look
                     ctx.strokeStyle = '#ffd700';
-                    ctx.lineWidth = 3;
+                    ctx.lineWidth = 4;
                     ctx.beginPath();
-                    ctx.arc(0, 10, 35, 0, Math.PI * 2);
+                    ctx.arc(0, 0, 30, 0, Math.PI * 2);
                     ctx.stroke();
+                    ctx.restore();
                 }
 
-                // Shadow
+                // Shadow (Ground Level)
+                ctx.save();
+                ctx.scale(1, 0.5);
                 ctx.fillStyle = 'rgba(0,0,0,0.3)';
                 ctx.beginPath();
-                ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2);
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
 
-                // Character sprite
+                // Character Sprite (Standing Up)
+                // Draw image upwards from (0,0) so feet are at origin
                 if (img && img.complete) {
-                    ctx.drawImage(img, -30, -40, 60, 70);
+                    // Assuming sprite is roughly 2x height vs width
+                    ctx.drawImage(img, -30, -70, 60, 70);
                 } else {
-                    // Fallback
                     ctx.fillStyle = isMe ? '#ffd700' : '#8b0000';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillRect(-15, -60, 30, 60);
                 }
 
-                // Name tag
-                ctx.fillStyle = isMe ? '#ffd700' : '#ffffff';
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 3;
-                ctx.font = 'bold 12px "Cinzel", serif';
-                ctx.textAlign = 'center';
-                const name = isMe ? myName : p.name;
-                ctx.strokeText(name, 0, -50);
-                ctx.fillText(name, 0, -50);
-
-                // Bot indicator
+                // Interaction Text
                 if (p.isBot) {
-                    ctx.fillStyle = '#8b0000';
-                    ctx.font = '10px Arial';
-                    ctx.fillText('⚔️ Click to duel', 0, 45);
+                    ctx.fillStyle = '#ff4444';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    // ctx.fillText('⚔️ duel', 0, 15); // Below feet
+                }
+
+                // Name Tag (Floating above head)
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 12px "Cinzel"';
+                ctx.fillStyle = isMe ? '#ffd700' : '#ffffff';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.strokeText(isMe ? myName : p.name, 0, -80);
+                ctx.fillText(isMe ? myName : p.name, 0, -80);
+
+                // Chat Bubble
+                if (p.chatMessage) {
+                    ctx.font = 'bold 13px Verdana';
+                    ctx.fillStyle = '#ffff00';
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 2; // Thin outline
+                    ctx.strokeText(p.chatMessage, 0, -100);
+                    ctx.fillText(p.chatMessage, 0, -100);
                 }
 
                 ctx.restore();
-            };
-
-            // Draw bots
-            players.forEach(player => {
-                if (player.isBot) {
-                    drawPlayer(player, false);
-                }
             });
-
-            // Draw self (always on top)
-            drawPlayer({
-                id: 'me',
-                name: myName,
-                x: myPos.x,
-                y: myPos.y,
-                character: myCharacter,
-                isBot: false
-            }, true);
 
             animationFrameId = requestAnimationFrame(render);
         };
 
         render();
-
         return () => cancelAnimationFrame(animationFrameId);
     }, [players, myPos, selectedPlayer, myName, myCharacter]);
 
     return (
         <div className="relative">
-            <div className="relative border-4 border-[#5a3a22] rounded-xl shadow-2xl overflow-hidden bg-[#1a0f0a]">
+            <div className="relative border-4 border-[#3e2723] rounded-xl shadow-2xl overflow-hidden bg-[#1a0f0a]">
                 <canvas
                     ref={canvasRef}
                     width={800}
@@ -310,33 +330,39 @@ export function LobbyCanvas() {
                     className="w-full h-auto cursor-pointer"
                     onClick={handleCanvasClick}
                 />
-                <div className="absolute top-4 left-4 bg-black/70 text-[#eecfa1] p-3 rounded font-mono text-sm">
-                    <div className="font-bold mb-1">Controls:</div>
-                    <div>WASD / Arrow keys to move</div>
-                    <div>Click a gladiator to duel</div>
+                {/* <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]"></div> */}
+                <div className="absolute top-4 left-4 bg-black/60 text-[#eecfa1] p-3 rounded font-mono text-sm border border-[#5a3a22] backdrop-blur-sm">
+                    <div className="font-bold mb-1 text-[#ffd700] uppercase tracking-wider">Controls</div>
+                    <div className="opacity-80">WASD / Arrow keys</div>
+                    <div className="opacity-80">Click players to duel</div>
                 </div>
             </div>
 
             {/* Challenge Modal */}
             {selectedPlayer && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-                    <div className="bg-[#2a1a10] border-4 border-[#ffd700] rounded-lg p-6 shadow-2xl pointer-events-auto">
-                        <p className="text-[#eecfa1] text-center mb-4 font-[Cinzel] text-xl">
-                            Challenge <span className="text-[#ffd700] font-bold">{players.get(selectedPlayer)?.name}</span> to a duel?
-                        </p>
-                        <div className="flex gap-4">
-                            <button
-                                onClick={challengeBot}
-                                className="flex-1 px-6 py-3 bg-[#8b0000] text-[#ffd700] font-bold rounded hover:bg-[#a60000] border-2 border-[#ffd700] font-[Cinzel] text-lg cursor-pointer active:scale-95 transition-transform"
-                            >
-                                ⚔️ FIGHT!
-                            </button>
-                            <button
-                                onClick={() => setSelectedPlayer(null)}
-                                className="flex-1 px-6 py-3 bg-[#3b3b3b] text-[#eecfa1] font-bold rounded hover:bg-[#4b4b4b] border-2 border-[#5a5a5a] font-[Cinzel] text-lg cursor-pointer active:scale-95 transition-transform"
-                            >
-                                Cancel
-                            </button>
+                    <div className="bg-[#2a1a10] border-2 border-[#ffd700] p-1 shadow-2xl pointer-events-auto transform scale-100 transition-all max-w-sm w-full">
+                        <div className="border border-[#ffd700]/30 p-6">
+                            <h3 className="text-[#ffd700] text-center mb-6 font-[Cinzel] text-2xl uppercase tracking-widest border-b border-[#ffd700]/30 pb-4">
+                                Challenge
+                            </h3>
+                            <p className="text-[#eecfa1] text-center mb-8 font-serif text-lg">
+                                Duel <span className="text-white font-bold">{players.get(selectedPlayer)?.name}</span>?
+                            </p>
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={challengeBot}
+                                    className="flex-1 px-4 py-3 bg-[#5a0000] hover:bg-[#7a0000] text-[#ffd700] font-bold border border-[#ffd700] font-[Cinzel] text-sm uppercase tracking-wider transition-colors"
+                                >
+                                    Fight
+                                </button>
+                                <button
+                                    onClick={() => setSelectedPlayer(null)}
+                                    className="flex-1 px-4 py-3 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-[#888] font-bold border border-[#444] font-[Cinzel] text-sm uppercase tracking-wider transition-colors"
+                                >
+                                    Decline
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
