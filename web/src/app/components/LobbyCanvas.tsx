@@ -2,122 +2,186 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
+import { useAuth } from '../context/AuthContext';
 
 interface PlayerState {
     id: string;
+    name: string;
     x: number;
     y: number;
     character: string;
-    targetX?: number; // For interpolation
+    isBot?: boolean;
+    targetX?: number;
     targetY?: number;
 }
 
+const BOT_NAMES = ['Maximus', 'Spartacus', 'Crixus', 'Commodus', 'Tigris'];
+
 export function LobbyCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { sendMessage, messages } = useGame();
+    const { startDemoFight } = useGame();
+    const { user } = useAuth();
     const [players, setPlayers] = useState<Map<string, PlayerState>>(new Map());
     const [myPos, setMyPos] = useState({ x: 400, y: 300 });
+    const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+    const keysRef = useRef(new Set<string>());
+
+    const myCharacter = 'trump';
+    const myName = user?.username || 'You';
 
     // Assets
     const assetsRef = useRef<{ [key: string]: HTMLImageElement }>({});
+    const assetsLoaded = useRef(false);
 
     // Load Assets
     useEffect(() => {
-        const chars = ['trump', 'maduro', 'gladiator'];
+        const chars = ['trump', 'maduro'];
+        let loaded = 0;
         chars.forEach(char => {
             const img = new Image();
-            img.src = `/characters/${char}.png`; // Assuming these exist from previous step
+            img.onload = () => {
+                loaded++;
+                if (loaded === chars.length) {
+                    assetsLoaded.current = true;
+                }
+            };
+            img.src = `/characters/${char}.png`;
             assetsRef.current[char] = img;
         });
     }, []);
 
-    // Join Lobby on Mount
+    // Initialize bots
     useEffect(() => {
-        // We send a random character for now, or user's preference
-        const chars = ['trump', 'maduro'];
-        const myChar = chars[Math.floor(Math.random() * chars.length)];
-        sendMessage('LOBBY_ENTER', { character: myChar });
-    }, [sendMessage]);
+        const initialPlayers = new Map<string, PlayerState>();
 
-    // Handle Incoming Snapshots
-    useEffect(() => {
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg && lastMsg.type === 'LOBBY_SNAPSHOT' && lastMsg.payload) {
-            const payloadPlayers = (lastMsg.payload as any).players as any[];
-
-            setPlayers(prev => {
-                const newMap = new Map(prev);
-                const activeIds = new Set<string>();
-
-                payloadPlayers.forEach(p => {
-                    activeIds.add(p.id);
-                    const existing = newMap.get(p.id);
-
-                    if (existing) {
-                        // Update target for interpolation
-                        existing.targetX = p.x;
-                        existing.targetY = p.y;
-                        // If it's me, sync ONLY if deviation is large (lag fix), otherwise trust local input
-                        // For now, simpler: map 'my' ID checking needed.
-                    } else {
-                        newMap.set(p.id, {
-                            id: p.id,
-                            x: p.x,
-                            y: p.y,
-                            character: p.character
-                        });
-                    }
-                });
-
-                // Remove disconnected
-                for (const id of newMap.keys()) {
-                    if (!activeIds.has(id)) {
-                        newMap.delete(id);
-                    }
-                }
-                return newMap;
+        // Add bots
+        const botCharacters = ['maduro', 'trump', 'maduro'];
+        for (let i = 0; i < 3; i++) {
+            const botId = `bot-${i}`;
+            initialPlayers.set(botId, {
+                id: botId,
+                name: BOT_NAMES[i],
+                x: 150 + Math.random() * 500,
+                y: 150 + Math.random() * 300,
+                character: botCharacters[i],
+                isBot: true,
+                targetX: 150 + Math.random() * 500,
+                targetY: 150 + Math.random() * 300,
             });
         }
-    }, [messages]);
+
+        setPlayers(initialPlayers);
+    }, []);
+
+    // Bot AI - random movement
+    useEffect(() => {
+        const botInterval = setInterval(() => {
+            setPlayers(prev => {
+                const newMap = new Map(prev);
+                newMap.forEach((player, id) => {
+                    if (player.isBot) {
+                        // Move towards target
+                        const dx = (player.targetX || player.x) - player.x;
+                        const dy = (player.targetY || player.y) - player.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        if (dist < 5) {
+                            // Pick new random target
+                            player.targetX = 100 + Math.random() * 600;
+                            player.targetY = 100 + Math.random() * 400;
+                        } else {
+                            // Move towards target
+                            const speed = 1.5;
+                            player.x += (dx / dist) * speed;
+                            player.y += (dy / dist) * speed;
+                        }
+                    }
+                });
+                return newMap;
+            });
+        }, 50);
+
+        return () => clearInterval(botInterval);
+    }, []);
 
     // Input Handling (WASD)
     useEffect(() => {
-        const keys = new Set<string>();
-        const handleDown = (e: KeyboardEvent) => keys.add(e.key.toLowerCase());
-        const handleUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
+        const handleDown = (e: KeyboardEvent) => {
+            keysRef.current.add(e.key.toLowerCase());
+        };
+        const handleUp = (e: KeyboardEvent) => {
+            keysRef.current.delete(e.key.toLowerCase());
+        };
 
         window.addEventListener('keydown', handleDown);
         window.addEventListener('keyup', handleUp);
 
-        // Movement Loop
         const moveInterval = setInterval(() => {
+            const keys = keysRef.current;
             if (keys.size === 0) return;
 
             setMyPos(prev => {
                 let { x, y } = prev;
-                const speed = 5;
-                if (keys.has('w')) y -= speed;
-                if (keys.has('s')) y += speed;
-                if (keys.has('a')) x -= speed;
-                if (keys.has('d')) x += speed;
+                const speed = 4;
+                if (keys.has('w') || keys.has('arrowup')) y -= speed;
+                if (keys.has('s') || keys.has('arrowdown')) y += speed;
+                if (keys.has('a') || keys.has('arrowleft')) x -= speed;
+                if (keys.has('d') || keys.has('arrowright')) x += speed;
 
                 // Boundaries
-                x = Math.max(20, Math.min(780, x));
-                y = Math.max(20, Math.min(580, y));
-
-                // Send update to server
-                sendMessage('LOBBY_MOVE', { x, y });
+                x = Math.max(40, Math.min(760, x));
+                y = Math.max(40, Math.min(560, y));
 
                 return { x, y };
             });
-        }, 1000 / 60); // 60hz local update
+        }, 1000 / 60);
 
         return () => {
             window.removeEventListener('keydown', handleDown);
             window.removeEventListener('keyup', handleUp);
             clearInterval(moveInterval);
         };
-    }, [sendMessage]);
+    }, []);
+
+    // Click handler for challenging
+    const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const clickX = (e.clientX - rect.left) * scaleX;
+        const clickY = (e.clientY - rect.top) * scaleY;
+
+        // Check if clicked on a bot
+        let clickedBotId: string | null = null;
+        players.forEach(player => {
+            if (player.isBot) {
+                const dist = Math.sqrt((clickX - player.x) ** 2 + (clickY - player.y) ** 2);
+                if (dist < 40) {
+                    clickedBotId = player.id;
+                }
+            }
+        });
+
+        if (clickedBotId) {
+            setSelectedPlayer(clickedBotId);
+        } else {
+            setSelectedPlayer(null);
+        }
+    }, [players]);
+
+    // Challenge selected bot
+    const challengeBot = useCallback(() => {
+        if (selectedPlayer) {
+            const bot = players.get(selectedPlayer);
+            if (bot) {
+                // Start a demo fight against this bot
+                startDemoFight(myName, 100000000); // 0.1 SOL
+            }
+        }
+    }, [selectedPlayer, players, startDemoFight, myName]);
 
     // Render Loop
     useEffect(() => {
@@ -129,63 +193,100 @@ export function LobbyCanvas() {
         let animationFrameId: number;
 
         const render = () => {
-            // Clear
-            ctx.fillStyle = '#eecfa1'; // Sand color
+            // Clear with sand color
+            ctx.fillStyle = '#eecfa1';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Grid/Details (Simple floor texture logic)
-            ctx.globalAlpha = 0.1;
-            ctx.strokeStyle = '#5a3a22';
+            // Draw subtle grid
+            ctx.globalAlpha = 0.15;
+            ctx.strokeStyle = '#8b6b45';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            for (let i = 0; i < canvas.width; i += 50) { ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); }
-            for (let i = 0; i < canvas.height; i += 50) { ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); }
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+            }
+            for (let i = 0; i < canvas.height; i += 40) {
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+            }
             ctx.stroke();
             ctx.globalAlpha = 1.0;
 
-            // Draw Players
-            players.forEach(p => {
-                // Simple Interpolation
-                if (p.targetX !== undefined && p.targetY !== undefined) {
-                    p.x += (p.targetX - p.x) * 0.1;
-                    p.y += (p.targetY - p.y) * 0.1;
-                }
+            // Draw arena border decorations
+            ctx.strokeStyle = '#5a3a22';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-                const img = assetsRef.current[p.character] || assetsRef.current['gladiator'];
+            // Function to draw a player
+            const drawPlayer = (p: PlayerState, isMe: boolean = false) => {
+                const img = assetsRef.current[p.character];
 
                 ctx.save();
                 ctx.translate(p.x, p.y);
 
+                // Selection ring
+                if (selectedPlayer === p.id) {
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 10, 35, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
                 // Shadow
                 ctx.fillStyle = 'rgba(0,0,0,0.3)';
                 ctx.beginPath();
-                ctx.ellipse(0, 20, 15, 5, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 25, 20, 8, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Character
-                if (img) {
-                    // Draw centered
-                    ctx.drawImage(img, -20, -30, 40, 60); // Adjust size as needed
+                // Character sprite
+                if (img && img.complete) {
+                    ctx.drawImage(img, -30, -40, 60, 70);
                 } else {
-                    // Fallback circle
-                    ctx.fillStyle = 'red';
+                    // Fallback
+                    ctx.fillStyle = isMe ? '#ffd700' : '#8b0000';
                     ctx.beginPath();
-                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
                     ctx.fill();
                 }
 
-                // Nameplate (optional)
-                // ctx.fillStyle = 'black';
-                // ctx.fillText(p.id.slice(0,4), -10, -40);
+                // Name tag
+                ctx.fillStyle = isMe ? '#ffd700' : '#ffffff';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 12px "Cinzel", serif';
+                ctx.textAlign = 'center';
+                const name = isMe ? myName : p.name;
+                ctx.strokeText(name, 0, -50);
+                ctx.fillText(name, 0, -50);
+
+                // Bot indicator
+                if (p.isBot) {
+                    ctx.fillStyle = '#8b0000';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('⚔️ Click to duel', 0, 45);
+                }
 
                 ctx.restore();
+            };
+
+            // Draw bots
+            players.forEach(player => {
+                if (player.isBot) {
+                    drawPlayer(player, false);
+                }
             });
 
-            // Draw Self (Local Prediction)
-            // Note: We might want to just render 'players' if we can identify 'self' correctly in the map
-            // For now, let's render local state on top to be sure it feels responsive
-            // Actually, if we get snapshot, we are in 'players' too. 
-            // To strictly follow Ralph's smooth plan, we should separate "Self" render from "Others".
-            // Let's implement that refinement later. For MVP, map rendering is fine.
+            // Draw self (always on top)
+            drawPlayer({
+                id: 'me',
+                name: myName,
+                x: myPos.x,
+                y: myPos.y,
+                character: myCharacter,
+                isBot: false
+            }, true);
 
             animationFrameId = requestAnimationFrame(render);
         };
@@ -193,19 +294,47 @@ export function LobbyCanvas() {
         render();
 
         return () => cancelAnimationFrame(animationFrameId);
-    }, [players, myPos]);
+    }, [players, myPos, selectedPlayer, myName, myCharacter]);
 
     return (
-        <div className="relative border-4 border-[#5a3a22] rounded-xl shadow-2xl overflow-hidden bg-[#1a0f0a]">
-            <canvas
-                ref={canvasRef}
-                width={800}
-                height={600}
-                className="w-full h-auto cursor-crosshair"
-            />
-            <div className="absolute top-4 left-4 bg-black/50 text-[#eecfa1] p-2 rounded font-mono text-xs">
-                Use WASD to move
+        <div className="relative">
+            <div className="relative border-4 border-[#5a3a22] rounded-xl shadow-2xl overflow-hidden bg-[#1a0f0a]">
+                <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={600}
+                    className="w-full h-auto cursor-pointer"
+                    onClick={handleCanvasClick}
+                />
+                <div className="absolute top-4 left-4 bg-black/70 text-[#eecfa1] p-3 rounded font-mono text-sm">
+                    <div className="font-bold mb-1">Controls:</div>
+                    <div>WASD / Arrow keys to move</div>
+                    <div>Click a gladiator to duel</div>
+                </div>
             </div>
+
+            {/* Challenge Modal */}
+            {selectedPlayer && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#2a1a10] border-2 border-[#ffd700] rounded-lg p-4 shadow-xl">
+                    <p className="text-[#eecfa1] text-center mb-3 font-[Cinzel]">
+                        Challenge <span className="text-[#ffd700] font-bold">{players.get(selectedPlayer)?.name}</span> to a duel?
+                    </p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={challengeBot}
+                            className="flex-1 px-4 py-2 bg-[#8b0000] text-[#ffd700] font-bold rounded hover:bg-[#a60000] border-2 border-[#ffd700] font-[Cinzel]"
+                        >
+                            ⚔️ FIGHT!
+                        </button>
+                        <button
+                            onClick={() => setSelectedPlayer(null)}
+                            className="flex-1 px-4 py-2 bg-[#3b3b3b] text-[#eecfa1] font-bold rounded hover:bg-[#4b4b4b] border-2 border-[#5a5a5a] font-[Cinzel]"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
