@@ -53,7 +53,7 @@ export function LobbyCanvas() {
 
     // Load Assets
     useEffect(() => {
-        const assets = ['trump', 'maduro', 'floor', 'body'];
+        const assets = ['trump', 'maduro', 'floor', 'body', 'isometric'];
         let loaded = 0;
         assets.forEach(name => {
             const img = new Image();
