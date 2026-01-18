@@ -97,7 +97,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         socket.onclose = () => {
             console.log('Disconnected from Game Server');
             setIsConnected(false);
-            setGameState('idle');
+            // Don't reset gameState here - it interrupts demo fights and ongoing matches
+            // The user can manually reset via resetGame() if needed
 
             // Attempt reconnect after 3 seconds
             reconnectTimeout.current = setTimeout(() => connectRef.current?.(), 3000);
