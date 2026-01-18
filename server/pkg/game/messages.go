@@ -2,9 +2,12 @@ package game
 
 // Incoming Message Types
 const (
-	MsgTypeJoinQueue  = "JOIN_QUEUE"
-	MsgTypeLeaveQueue = "LEAVE_QUEUE"
-	MsgTypePing       = "PING"
+	MsgTypeJoinQueue     = "JOIN_QUEUE"
+	MsgTypeLeaveQueue    = "LEAVE_QUEUE"
+	MsgTypePing          = "PING"
+	MsgTypeLobbyEnter    = "LOBBY_ENTER"
+	MsgTypeLobbyMove     = "LOBBY_MOVE"
+	MsgTypeLobbySnapshot = "LOBBY_SNAPSHOT"
 )
 
 // Outgoing Message Types

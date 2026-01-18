@@ -1,6 +1,10 @@
 package game
 
-import "log"
+import (
+	"encoding/json"
+	"log"
+	"time"
+)
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -33,6 +37,9 @@ func (h *Hub) IsConnected(c *Client) bool {
 }
 
 func (h *Hub) Run() {
+	ticker := time.NewTicker(100 * time.Millisecond) // 10Hz snapshot rate
+	defer ticker.Stop()
+
 	for {
 		select {
 		case client := <-h.Register:
@@ -51,6 +58,39 @@ func (h *Hub) Run() {
 				default:
 					close(client.Send)
 					delete(h.Clients, client)
+				}
+			}
+		case <-ticker.C:
+			// Broadcast Lobby Snapshot
+			players := make([]map[string]interface{}, 0)
+			for client := range h.Clients {
+				if client.InLobby {
+					players = append(players, map[string]interface{}{
+						"id":        client.UserID,
+						"x":         client.X,
+						"y":         client.Y,
+						"character": client.Character,
+					})
+				}
+			}
+
+			if len(players) > 0 {
+				snapshot := OutgoingMessage{
+					Type: MsgTypeLobbySnapshot,
+					Payload: map[string]interface{}{
+						"players": players,
+					},
+				}
+				jsonMsg, _ := json.Marshal(snapshot)
+				for client := range h.Clients {
+					if client.InLobby {
+						select {
+						case client.Send <- jsonMsg:
+						default:
+							close(client.Send)
+							delete(h.Clients, client)
+						}
+					}
 				}
 			}
 		}

@@ -41,6 +41,12 @@ type Client struct {
 
 	// Wager amount for matchmaking (in lamports)
 	WagerAmount int64
+
+	// Lobby State
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Character string  `json:"character"`
+	InLobby   bool    `json:"in_lobby"`
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -85,6 +91,25 @@ func (c *Client) readPump() {
 			// TODO: Remove from queue
 		case MsgTypePing:
 			c.Send <- []byte(`{"type":"PONG"}`)
+		case MsgTypeLobbyEnter:
+			if msg.Payload != nil {
+				if char, ok := msg.Payload["character"].(string); ok {
+					c.Character = char
+				}
+			}
+			c.InLobby = true
+			// Assign random start position near center
+			c.X = 400.0 // Default center X
+			c.Y = 300.0 // Default center Y
+		case MsgTypeLobbyMove:
+			if msg.Payload != nil {
+				if x, ok := msg.Payload["x"].(float64); ok {
+					c.X = x
+				}
+				if y, ok := msg.Payload["y"].(float64); ok {
+					c.Y = y
+				}
+			}
 		default:
 			log.Printf("Unknown message type: %s", msg.Type)
 		}
