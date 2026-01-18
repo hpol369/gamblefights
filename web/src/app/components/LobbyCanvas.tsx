@@ -53,7 +53,7 @@ export function LobbyCanvas() {
 
     // Load Assets
     useEffect(() => {
-        const assets = ['trump', 'maduro', 'isometric'];
+        const assets = ['trump', 'maduro', 'floor', 'body'];
         let loaded = 0;
         assets.forEach(name => {
             const img = new Image();
@@ -63,7 +63,11 @@ export function LobbyCanvas() {
                     assetsLoaded.current = true;
                 }
             };
-            img.src = name === 'isometric' ? '/isometric_arena.png' : `/characters/${name}.png`;
+            if (name === 'floor') img.src = '/coliseum_floor.png';
+            else if (name === 'body') img.src = '/osrs_body.png';
+            else if (name === 'isometric') img.src = '/isometric_arena.png';
+            else img.src = `/characters/${name}.png`;
+
             assetsRef.current[name] = img;
         });
     }, []);
@@ -273,14 +277,30 @@ export function LobbyCanvas() {
                 ctx.fill();
                 ctx.restore();
 
-                // Character Sprite (Standing Up)
-                // Draw image upwards from (0,0) so feet are at origin
-                if (img && img.complete) {
-                    // Assuming sprite is roughly 2x height vs width
-                    ctx.drawImage(img, -30, -70, 60, 70);
+                // Character Composite (Body + Head)
+                const bodyImg = assetsRef.current['body'];
+                const headImg = assetsRef.current[p.character];
+
+                // 1. Draw Body
+                if (bodyImg && bodyImg.complete) {
+                    // Body scale/offset tweaking
+                    ctx.drawImage(bodyImg, -25, -60, 50, 60);
                 } else {
-                    ctx.fillStyle = isMe ? '#ffd700' : '#8b0000';
+                    // Fallback body
+                    ctx.fillStyle = '#4a5d23';
                     ctx.fillRect(-15, -60, 30, 60);
+                }
+
+                // 2. Draw Head (Layered on top)
+                if (headImg && headImg.complete) {
+                    // Head sits on top of body (approx -65 to -90 area)
+                    ctx.drawImage(headImg, -15, -85, 30, 35);
+                } else {
+                    // Fallback head
+                    ctx.fillStyle = isMe ? '#ffd700' : '#d7c0a0';
+                    ctx.beginPath();
+                    ctx.arc(0, -65, 12, 0, Math.PI * 2);
+                    ctx.fill();
                 }
 
                 // Interaction Text
@@ -288,26 +308,25 @@ export function LobbyCanvas() {
                     ctx.fillStyle = '#ff4444';
                     ctx.font = 'bold 10px Arial';
                     ctx.textAlign = 'center';
-                    // ctx.fillText('⚔️ duel', 0, 15); // Below feet
                 }
 
-                // Name Tag (Floating above head)
+                // Name Tag
                 ctx.textAlign = 'center';
                 ctx.font = 'bold 12px "Cinzel"';
                 ctx.fillStyle = isMe ? '#ffd700' : '#ffffff';
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 3;
-                ctx.strokeText(isMe ? myName : p.name, 0, -80);
-                ctx.fillText(isMe ? myName : p.name, 0, -80);
+                ctx.strokeText(isMe ? myName : p.name, 0, -95);
+                ctx.fillText(isMe ? myName : p.name, 0, -95);
 
                 // Chat Bubble
                 if (p.chatMessage) {
                     ctx.font = 'bold 13px Verdana';
                     ctx.fillStyle = '#ffff00';
                     ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 2; // Thin outline
-                    ctx.strokeText(p.chatMessage, 0, -100);
-                    ctx.fillText(p.chatMessage, 0, -100);
+                    ctx.lineWidth = 2;
+                    ctx.strokeText(p.chatMessage, 0, -115);
+                    ctx.fillText(p.chatMessage, 0, -115);
                 }
 
                 ctx.restore();
@@ -330,7 +349,6 @@ export function LobbyCanvas() {
                     className="w-full h-auto cursor-pointer"
                     onClick={handleCanvasClick}
                 />
-                {/* <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]"></div> */}
                 <div className="absolute top-4 left-4 bg-black/60 text-[#eecfa1] p-3 rounded font-mono text-sm border border-[#5a3a22] backdrop-blur-sm">
                     <div className="font-bold mb-1 text-[#ffd700] uppercase tracking-wider">Controls</div>
                     <div className="opacity-80">WASD / Arrow keys</div>
