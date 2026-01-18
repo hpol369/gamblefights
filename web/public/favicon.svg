@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Helmet base -->
+  <ellipse cx="32" cy="38" rx="22" ry="20" fill="#8b6b45"/>
+  <ellipse cx="32" cy="36" rx="20" ry="18" fill="#ffd700"/>
+
+  <!-- Helmet dome -->
+  <path d="M12 36 Q12 16 32 12 Q52 16 52 36" fill="#ffd700" stroke="#8b6b45" stroke-width="2"/>
+
+  <!-- Helmet crest/ridge -->
+  <path d="M32 8 L32 12 Q32 16 32 20" stroke="#8b0000" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Plume -->
+  <ellipse cx="32" cy="6" rx="8" ry="4" fill="#8b0000"/>
+  <path d="M24 6 Q20 2 24 0 Q32 4 40 0 Q44 2 40 6" fill="#8b0000"/>
+
+  <!-- Face guard / T-shape opening -->
+  <path d="M20 32 L20 48 Q20 52 24 52 L28 52 L28 38 L36 38 L36 52 L40 52 Q44 52 44 48 L44 32"
+        fill="#1a1a1a" stroke="#8b6b45" stroke-width="1"/>
+
+  <!-- Eye holes -->
+  <ellipse cx="26" cy="36" rx="4" ry="3" fill="#1a1a1a"/>
+  <ellipse cx="38" cy="36" rx="4" ry="3" fill="#1a1a1a"/>
+
+  <!-- Decorative dots -->
+  <circle cx="18" cy="28" r="2" fill="#8b6b45"/>
+  <circle cx="46" cy="28" r="2" fill="#8b6b45"/>
+
+  <!-- Cheek guards -->
+  <path d="M14 40 Q10 44 12 50 Q14 54 18 52" fill="#ffd700" stroke="#8b6b45" stroke-width="1"/>
+  <path d="M50 40 Q54 44 52 50 Q50 54 46 52" fill="#ffd700" stroke="#8b6b45" stroke-width="1"/>
+</svg>

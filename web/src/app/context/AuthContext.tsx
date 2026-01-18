@@ -12,9 +12,11 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   signIn: () => Promise<void>;
+  signInAsGuest: () => void;
   signOut: () => void;
   refreshBalances: () => Promise<void>;
   addTestFunds: () => Promise<void>;
+  isGuest: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,8 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
 
-  const isAuthenticated = !!user && connected;
+  const isAuthenticated = !!user || isGuest;
 
   // Refresh balances
   const refreshBalances = useCallback(async () => {
@@ -113,11 +116,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [publicKey, signMessage]);
 
+  // Sign in as guest (demo mode)
+  const signInAsGuest = useCallback(() => {
+    const guestUser: User = {
+      id: 'guest-' + Math.random().toString(36).substr(2, 9),
+      walletAddressSOL: 'DEMO',
+      username: 'Gladiator_' + Math.floor(Math.random() * 9999),
+      clientSeed: 'demo-seed',
+      totalWins: 0,
+      totalLosses: 0,
+    };
+    setUser(guestUser);
+    setIsGuest(true);
+    setBalances([{ currency: 'SOL', balance: 1.0, display: '1.00 SOL' }]);
+  }, []);
+
   // Sign out
   const signOut = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
     setBalances([]);
+    setIsGuest(false);
     disconnect();
   }, [disconnect]);
 
@@ -130,9 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         error,
         signIn,
+        signInAsGuest,
         signOut,
         refreshBalances,
         addTestFunds,
+        isGuest,
       }}
     >
       {children}

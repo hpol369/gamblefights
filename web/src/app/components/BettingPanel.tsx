@@ -6,6 +6,7 @@ import { useGame, MatchResult } from '../context/GameContext';
 import { parseSOL, formatSOL } from '@/lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const DEMO_WAGER = 100000000; // 0.1 SOL in lamports for demo
 
 const WAGER_PRESETS = [
   { label: '0.05 SOL', value: 0.05 },
@@ -16,13 +17,31 @@ const WAGER_PRESETS = [
 ];
 
 export function BettingPanel() {
-  const { balances, refreshBalances } = useAuth();
-  const { gameState, joinQueue, leaveQueue, isConnected, setTestMatch } = useGame();
+  const { balances, isGuest, user } = useAuth();
+  const { gameState, joinQueue, leaveQueue, isConnected, setTestMatch, startDemoFight } = useGame();
   const [selectedWager, setSelectedWager] = useState(0.1);
   const [customWager, setCustomWager] = useState('');
   const [isTestingFight, setIsTestingFight] = useState(false);
 
+  // Handle fight - uses demo mode for guests, real API for authenticated users
+  const handleFight = () => {
+    if (isGuest) {
+      // Use local demo fight for guests
+      startDemoFight(user?.username || 'Guest', DEMO_WAGER);
+    } else {
+      // Use real queue for authenticated users
+      const amount = customWager ? parseFloat(customWager) : selectedWager;
+      joinQueue(parseSOL(amount));
+    }
+  };
+
   const handleTestFight = async () => {
+    // For guests, just use demo fight
+    if (isGuest) {
+      startDemoFight(user?.username || 'Guest', DEMO_WAGER);
+      return;
+    }
+
     setIsTestingFight(true);
     try {
       const token = localStorage.getItem('token');
@@ -57,22 +76,17 @@ export function BettingPanel() {
   const solBalance = balances.find((b) => b.currency === 'SOL');
   const balanceLamports = solBalance?.balance || 0;
   const wagerLamports = parseSOL(customWager ? parseFloat(customWager) : selectedWager);
-  const hasEnoughBalance = balanceLamports >= wagerLamports;
+  const hasEnoughBalance = isGuest || balanceLamports >= wagerLamports;
 
-  const handleJoinQueue = () => {
-    const amount = customWager ? parseFloat(customWager) : selectedWager;
-    joinQueue(parseSOL(amount));
-  };
-
-  const isQueuing = gameState === 'queuing';
+  const isQueuing = gameState === 'queuing' || gameState === 'matched';
 
   return (
-    <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6">
-      <h2 className="text-xl font-bold mb-6 text-center">Quick Play</h2>
+    <div className="parchment-panel rounded-xl p-6">
+      <h2 className="text-2xl font-bold mb-6 text-center font-[Cinzel] text-[#8b0000]">Wager Your Gold</h2>
 
       {/* Wager Selection */}
       <div className="space-y-4">
-        <label className="block text-sm text-gray-400">Select Wager Amount</label>
+        <label className="block text-sm text-[#5a3a22] font-bold uppercase tracking-wide">Select Wager Amount</label>
 
         {/* Preset Buttons */}
         <div className="grid grid-cols-3 gap-2">
@@ -84,11 +98,10 @@ export function BettingPanel() {
                 setCustomWager('');
               }}
               disabled={isQueuing}
-              className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                selectedWager === preset.value && !customWager
-                  ? 'bg-orange-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              } disabled:opacity-50`}
+              className={`py-2 px-3 rounded text-sm font-bold transition-all border font-[Cinzel] ${selectedWager === preset.value && !customWager
+                  ? 'bg-[#8b0000] text-[#ffd700] border-[#ffd700]'
+                  : 'bg-[#eecfa1] text-[#5a3a22] border-[#8b6b45] hover:bg-[#d4b483]'
+                } disabled:opacity-50`}
             >
               {preset.label}
             </button>
@@ -103,84 +116,83 @@ export function BettingPanel() {
             value={customWager}
             onChange={(e) => setCustomWager(e.target.value)}
             disabled={isQueuing}
-            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 disabled:opacity-50"
+            className="w-full px-4 py-3 bg-[#eecfa1] border-2 border-[#8b6b45] rounded text-[#3b3b3b] placeholder-[#8b6b45]/50 focus:outline-none focus:border-[#8b0000] font-[Cinzel] disabled:opacity-50"
             step="0.01"
             min="0.01"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#5a3a22] font-bold">
             SOL
           </span>
         </div>
 
         {/* Balance Display */}
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-400">Your Balance:</span>
-          <span className={hasEnoughBalance ? 'text-green-400' : 'text-red-400'}>
+        <div className="flex justify-between text-sm font-mono">
+          <span className="text-[#5a3a22]">Your Balance:</span>
+          <span className={hasEnoughBalance ? 'text-[#3b8b00] font-bold' : 'text-[#8b0000] font-bold'}>
             {solBalance?.display || '0 SOL'}
           </span>
         </div>
 
         {!hasEnoughBalance && wagerLamports > 0 && (
-          <p className="text-red-400 text-sm text-center">
-            Insufficient balance for this wager
+          <p className="text-[#8b0000] text-sm text-center font-bold">
+            Insufficient funds, beggar.
           </p>
         )}
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-6 space-y-3">
+      <div className="mt-8 space-y-3">
         {!isQueuing ? (
           <button
-            onClick={handleJoinQueue}
-            disabled={!isConnected || !hasEnoughBalance || wagerLamports === 0}
-            className="w-full py-4 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 rounded-lg text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            onClick={handleFight}
+            disabled={(!isGuest && !isConnected) || !hasEnoughBalance || (!isGuest && wagerLamports === 0)}
+            className="w-full py-4 bg-[#8b0000] text-[#ffd700] border-4 border-[#ffd700] rounded text-lg font-bold font-[Cinzel] uppercase disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
           >
-            {!isConnected
-              ? 'Connecting...'
-              : `Fight for ${formatSOL(wagerLamports)}`}
+            {isGuest
+              ? 'FIGHT NOW (Demo)'
+              : !isConnected
+              ? 'Connecting to Arena...'
+              : `FIGHT FOR ${formatSOL(wagerLamports)}`}
           </button>
         ) : (
           <div className="space-y-3">
-            <div className="text-center py-4">
+            <div className="text-center py-4 bg-[#eecfa1]/50 rounded border border-[#8b6b45]">
               <div className="inline-flex items-center gap-3">
-                <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-lg font-semibold">
-                  Finding opponent...
+                <div className="w-4 h-4 border-2 border-[#8b0000] border-t-transparent rounded-full animate-spin" />
+                <span className="text-lg font-bold text-[#8b0000] font-[Cinzel]">
+                  Searching for Opponent...
                 </span>
               </div>
-              <p className="text-gray-400 text-sm mt-2">
+              <p className="text-[#5a3a22] text-sm mt-2 font-mono">
                 Wager: {formatSOL(wagerLamports)}
               </p>
             </div>
             <button
               onClick={leaveQueue}
-              className="w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
+              className="w-full py-3 bg-[#5a5a5a] text-[#eecfa1] hover:bg-[#6a6a6a] rounded font-bold transition-colors uppercase text-sm"
             >
-              Cancel
+              Cancel Search
             </button>
           </div>
         )}
       </div>
 
       {/* Test Fight Button */}
-      <div className="mt-6 pt-6 border-t border-gray-700">
+      <div className="mt-6 pt-6 border-t border-[#8b6b45]/30">
         <button
           onClick={handleTestFight}
           disabled={isTestingFight}
-          className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-medium transition-colors disabled:opacity-50"
+          className="w-full py-2 bg-[#5a3a22] text-[#eecfa1] hover:bg-[#7a5a3a] rounded text-sm font-bold transition-colors disabled:opacity-50 uppercase font-[Cinzel]"
         >
-          {isTestingFight ? 'Starting...' : '🤖 Test Fight vs Bot (Free)'}
+          {isTestingFight ? 'Summoning Bot...' : '🤖 Spar with Training Dummy'}
         </button>
-        <p className="text-xs text-gray-500 mt-2 text-center">
-          Fight against a bot to test the game
-        </p>
       </div>
 
       {/* Info */}
-      <div className="mt-6 pt-6 border-t border-gray-700">
-        <div className="text-xs text-gray-500 space-y-1">
-          <p>Winner takes all (0% house edge for MVP)</p>
-          <p>Matched with players at similar wager amounts</p>
+      <div className="mt-4 pt-4 border-t border-[#8b6b45]/30">
+        <div className="text-[10px] text-[#8b6b45] space-y-1 text-center font-serif italic">
+          <p>Winner takes all gold (0% tax for Gladiators)</p>
+          <p>Matched with warriors of equal wealth</p>
         </div>
       </div>
     </div>

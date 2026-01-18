@@ -15,13 +15,13 @@ export async function verifyOutcome(serverSeed: string, clientSeed: string, nonc
 
     const key = await crypto.subtle.importKey(
         'raw',
-        keyData,
+        keyData as BufferSource,
         { name: 'HMAC', hash: 'SHA-256' },
         false,
         ['sign']
     );
 
-    const signature = await crypto.subtle.sign('HMAC', key, msgData);
+    const signature = await crypto.subtle.sign('HMAC', key, msgData as BufferSource);
     const hashArray = Array.from(new Uint8Array(signature));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 

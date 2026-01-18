@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from 'react';
+import { generateDemoFight } from '@/lib/demoFight';
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
 
@@ -68,6 +69,7 @@ interface GameContextType {
     leaveQueue: () => void;
     resetGame: () => void;
     setTestMatch: (match: MatchResult) => void;
+    startDemoFight: (username: string, wagerAmount: number) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -80,6 +82,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const [messages, setMessages] = useState<GameMessage[]>([]);
     const ws = useRef<WebSocket | null>(null);
     const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+    const connectRef = useRef<(() => void) | undefined>(undefined);
 
     const connect = useCallback(() => {
         if (ws.current?.readyState === WebSocket.OPEN) return;
@@ -97,7 +100,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             setGameState('idle');
 
             // Attempt reconnect after 3 seconds
-            reconnectTimeout.current = setTimeout(connect, 3000);
+            reconnectTimeout.current = setTimeout(() => connectRef.current?.(), 3000);
         };
 
         socket.onerror = (error) => {
@@ -134,6 +137,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
         ws.current = socket;
     }, []);
+
+    // Keep ref updated with latest connect function
+    useEffect(() => {
+        connectRef.current = connect;
+    }, [connect]);
 
     useEffect(() => {
         connect();
@@ -176,6 +184,45 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setGameState('result');
     }, []);
 
+    // Start a demo fight (for guest mode, runs locally without backend)
+    const startDemoFight = useCallback((username: string, wagerAmount: number) => {
+        setGameState('queuing');
+
+        // Simulate queue time
+        setTimeout(() => {
+            setGameState('matched');
+
+            // Generate the fight after a short delay
+            setTimeout(() => {
+                const demoFight = generateDemoFight();
+
+                // Override player A with the user
+                demoFight.playerA.username = username;
+                demoFight.playerA.id = 'guest-user';
+
+                // Create a full match result
+                const matchResult: MatchResult = {
+                    type: 'MATCH_RESULT',
+                    matchId: demoFight.matchId,
+                    winner: demoFight.winner === 'playerA' ? username : demoFight.playerB.username,
+                    winnerId: demoFight.winner === 'playerA' ? 'guest-user' : demoFight.playerB.id,
+                    serverSeed: 'demo-server-seed-' + Math.random().toString(36),
+                    serverSeedHashed: 'demo-hash',
+                    clientSeedA: 'demo-client-a',
+                    clientSeedB: 'demo-client-b',
+                    nonce: Math.floor(Math.random() * 1000),
+                    outcomeHash: 'demo-outcome-hash',
+                    fightScript: demoFight,
+                    wagerAmount: wagerAmount,
+                    totalPot: wagerAmount * 2,
+                };
+
+                setCurrentMatch(matchResult);
+                setGameState('result');
+            }, 1500);
+        }, 2000);
+    }, []);
+
     return (
         <GameContext.Provider
             value={{
@@ -189,6 +236,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
                 leaveQueue,
                 resetGame,
                 setTestMatch,
+                startDemoFight,
             }}
         >
             {children}

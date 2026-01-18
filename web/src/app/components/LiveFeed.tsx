@@ -31,10 +31,10 @@ export function LiveFeed() {
 
   if (isLoading) {
     return (
-      <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6">
+      <div className="parchment-panel p-6 rounded-lg">
         <div className="animate-pulse space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-gray-700 rounded-lg" />
+            <div key={i} className="h-16 bg-[#d4b483]/30 rounded-lg" />
           ))}
         </div>
       </div>
@@ -43,24 +43,24 @@ export function LiveFeed() {
 
   if (error) {
     return (
-      <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6 text-center">
-        <p className="text-gray-400">{error}</p>
+      <div className="parchment-panel p-6 rounded-lg text-center">
+        <p className="text-[#8b0000]">{error}</p>
       </div>
     );
   }
 
   if (matches.length === 0) {
     return (
-      <div className="bg-gray-800/50 rounded-xl border border-gray-700 p-6 text-center">
-        <p className="text-gray-400">No recent matches</p>
-        <p className="text-sm text-gray-500 mt-2">Be the first to fight!</p>
+      <div className="parchment-panel p-6 rounded-lg text-center">
+        <p className="text-[#5a3a22] font-[Cinzel]">No carnage in the arena yet.</p>
+        <p className="text-sm text-[#8b6b45] mt-2 italic">Be the first gladiator!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-800/50 rounded-xl border border-gray-700 overflow-hidden">
-      <div className="divide-y divide-gray-700">
+    <div className="parchment-panel rounded-lg overflow-hidden">
+      <div className="divide-y divide-[#d4b483]">
         {matches.map((match) => (
           <MatchCard key={match.id} match={match} />
         ))}
@@ -74,42 +74,39 @@ function MatchCard({ match }: { match: Match }) {
   const timeAgo = getTimeAgo(match.createdAt);
 
   return (
-    <div className="p-4 hover:bg-gray-700/30 transition-colors">
+    <div className="p-4 hover:bg-[#d4b483]/20 transition-colors">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span
-            className={`w-2 h-2 rounded-full ${
-              isCompleted ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
-            }`}
+            className={`w-2 h-2 rounded-full ${isCompleted ? 'bg-[#3b8b00]' : 'bg-[#ffd700] animate-pulse'
+              }`}
           />
-          <span className="text-xs text-gray-500">
-            {isCompleted ? 'Completed' : 'Live'}
+          <span className="text-xs text-[#5a3a22] uppercase font-bold tracking-wider">
+            {isCompleted ? 'Finished' : 'Fighting'}
           </span>
         </div>
-        <span className="text-xs text-gray-500">{timeAgo}</span>
+        <span className="text-xs text-[#8b6b45]">{timeAgo}</span>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between font-[Cinzel]">
         <div className="flex-1">
           <p
-            className={`font-medium text-sm truncate ${
-              match.winner === match.playerA ? 'text-green-400' : 'text-gray-300'
-            }`}
+            className={`font-bold text-sm truncate ${match.winner === match.playerA ? 'text-[#8b0000]' : 'text-[#3b3b3b]'
+              }`}
           >
             {match.playerAUsername}
             {match.winner === match.playerA && ' 👑'}
           </p>
         </div>
 
-        <div className="px-3 py-1 bg-gray-700 rounded text-xs font-mono">
+        <div className="px-3 py-1 bg-[#5a3a22] rounded text-xs font-mono text-[#eecfa1]">
           {match.wagerDisplay}
         </div>
 
         <div className="flex-1 text-right">
           <p
-            className={`font-medium text-sm truncate ${
-              match.winner === match.playerB ? 'text-green-400' : 'text-gray-300'
-            }`}
+            className={`font-bold text-sm truncate ${match.winner === match.playerB ? 'text-[#8b0000]' : 'text-[#3b3b3b]'
+              }`}
           >
             {match.winner === match.playerB && '👑 '}
             {match.playerBUsername}
@@ -118,8 +115,8 @@ function MatchCard({ match }: { match: Match }) {
       </div>
 
       {isCompleted && match.winnerUsername && (
-        <p className="text-xs text-gray-500 mt-2 text-center">
-          {match.winnerUsername} won {match.wagerDisplay} x2
+        <p className="text-xs text-[#5a3a22] mt-2 text-center font-serif italic">
+          {match.winnerUsername} claimed {match.wagerDisplay}
         </p>
       )}
     </div>

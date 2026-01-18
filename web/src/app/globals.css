@@ -1,14 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --color-sand: #eecfa1;
+  --color-stone-light: #7d7d7d;
+  --color-stone-dark: #3b3b3b;
+  --color-parchment: #fdf5e6;
+  --color-blood: #8b0000;
+  --color-gold: #ffd700;
+  
+  --background: var(--color-sand);
+  --foreground: var(--color-stone-dark);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+.bg-sand { background-color: var(--color-sand); }
+.text-stone-dark { color: var(--color-stone-dark); }
+
+/* Stone Borders */
+.stone-border {
+  border: 4px solid #5a5a5a;
+  box-shadow: 
+    inset 2px 2px 0px #9e9e9e,
+    inset -2px -2px 0px #333333,
+    2px 2px 5px rgba(0,0,0,0.3);
+  background: #7d7d7d;
+}
+
+/* Parchment Panel */
+.parchment-panel {
+  background: var(--color-parchment);
+  border: 1px solid #d4b483;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  position: relative;
+}
+.parchment-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.1'/%3E%3C/svg%3E");
+  pointer-events: none;
 }
 
 /* Custom scrollbar */
@@ -87,6 +123,75 @@ body {
 
 .animate-shake {
   animation: shake 0.3s ease-in-out;
+}
+
+/* Intense screen shake for combat impacts */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-8px, -6px) rotate(-1deg); }
+  20% { transform: translate(8px, 4px) rotate(1deg); }
+  30% { transform: translate(-6px, 8px) rotate(0deg); }
+  40% { transform: translate(6px, -4px) rotate(1deg); }
+  50% { transform: translate(-4px, 6px) rotate(-1deg); }
+  60% { transform: translate(4px, -6px) rotate(0deg); }
+  70% { transform: translate(-8px, 4px) rotate(-1deg); }
+  80% { transform: translate(6px, -8px) rotate(1deg); }
+  90% { transform: translate(-4px, 4px) rotate(0deg); }
+}
+
+.animate-screen-shake {
+  animation: screen-shake 0.4s ease-out;
+}
+
+/* Light screen shake for blocks */
+@keyframes screen-shake-light {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, -2px); }
+  50% { transform: translate(3px, 2px); }
+  75% { transform: translate(-2px, 3px); }
+}
+
+.animate-screen-shake-light {
+  animation: screen-shake-light 0.2s ease-out;
+}
+
+/* Critical hit shake - extra intense */
+@keyframes screen-shake-crit {
+  0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+  10% { transform: translate(-12px, -10px) rotate(-2deg) scale(1.02); }
+  20% { transform: translate(12px, 8px) rotate(2deg) scale(0.98); }
+  30% { transform: translate(-10px, 12px) rotate(-1deg) scale(1.01); }
+  40% { transform: translate(10px, -8px) rotate(1deg) scale(0.99); }
+  50% { transform: translate(-8px, 10px) rotate(-2deg) scale(1.02); }
+  60% { transform: translate(8px, -10px) rotate(1deg) scale(0.98); }
+  70% { transform: translate(-12px, 6px) rotate(-1deg) scale(1.01); }
+  80% { transform: translate(10px, -12px) rotate(2deg) scale(0.99); }
+  90% { transform: translate(-6px, 8px) rotate(0deg) scale(1); }
+}
+
+.animate-screen-shake-crit {
+  animation: screen-shake-crit 0.5s ease-out;
+}
+
+/* Bounce animation for gladiator legs */
+@keyframes bounce-slight {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.95); }
+}
+
+.animate-bounce-slight {
+  animation: bounce-slight 0.5s ease-in-out infinite;
+}
+
+/* Slow ping for action text */
+@keyframes ping-slow {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-ping-slow {
+  animation: ping-slow 0.8s ease-in-out;
 }
 
 /* Fight animation classes */
